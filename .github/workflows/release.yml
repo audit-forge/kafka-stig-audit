@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Run tests
+        run: |
+          pip install pytest
+          python -m pytest test/ -v
+
+      - name: Run smoke test
+        run: |
+          python audit.py \
+            --mode direct \
+            --host localhost \
+            --port 9092 \
+            --skip-cve \
+            --json /tmp/release-smoke.json \
+            --quiet || true
+          python -c "
+          import json
+          with open('/tmp/release-smoke.json') as f:
+              doc = json.load(f)
+          assert 'results' in doc
+          print(f'Smoke test: {len(doc[\"results\"])} checks, risk={doc[\"summary\"][\"risk_posture\"]}')
+          "
+
+      - name: Build distribution
+        run: python -m build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          generate_release_notes: true
+          body: |
+            ## kafka-stig-audit ${{ github.ref_name }}
+
+            Apache Kafka container security audit tool.
+
+            ### Installation
+
+            ```bash
+            pip install kafka-stig-audit-${{ github.ref_name }}.tar.gz
+            ```
+
+            ### Quick Start
+
+            ```bash
+            python audit.py --mode docker --container my-kafka --json results.json --csv results.csv
+            ```
+
+            ### What's Checked
+
+            - 32 automated controls across Authentication, Encryption, Authorization,
+              Network, Logging, ZooKeeper, and Container Runtime
+            - CVE/KEV vulnerability scanning via NVD API v2 and CISA KEV catalog
+            - Framework mappings: NIST 800-53, NIST 800-171, CMMC 2.0, MITRE ATT&CK/D3FEND
+
+            See [README.md](https://github.com/audit-forge/kafka-stig-audit/blob/main/README.md) for full documentation.

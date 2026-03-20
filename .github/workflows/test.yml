@@ -1,0 +1,135 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      - name: Run tests
+        run: python -m pytest test/ -v
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check syntax
+        run: |
+          python -m py_compile audit.py runner.py
+          python -m py_compile checks/base.py
+          python -m py_compile checks/auth.py
+          python -m py_compile checks/encryption.py
+          python -m py_compile checks/authz.py
+          python -m py_compile checks/network.py
+          python -m py_compile checks/logging_checks.py
+          python -m py_compile checks/zookeeper.py
+          python -m py_compile checks/container.py
+          python -m py_compile checks/cve_scanner.py
+          python -m py_compile mappings/frameworks.py
+          python -m py_compile output/report.py
+          python -m py_compile output/sarif.py
+          python -m py_compile output/bundle.py
+
+      - name: Verify imports
+        run: |
+          python -c "from checks import ALL_CHECKERS; print(f'Checkers: {len(ALL_CHECKERS)}')"
+          python -c "from mappings.frameworks import FRAMEWORK_MAP; print(f'Mappings: {len(FRAMEWORK_MAP)}')"
+          python -c "from runner import KafkaRunner; print('Runner OK')"
+
+  integration-smoke:
+    name: Integration smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run in direct mode (no broker — tests graceful error handling)
+        run: |
+          python audit.py \
+            --mode direct \
+            --host localhost \
+            --port 9092 \
+            --skip-cve \
+            --json /tmp/kafka-audit.json \
+            --sarif /tmp/kafka-audit.sarif \
+            --csv /tmp/kafka-audit.csv \
+            --quiet || true
+
+      - name: Validate JSON output
+        run: |
+          python -c "
+          import json
+          with open('/tmp/kafka-audit.json') as f:
+              doc = json.load(f)
+          assert 'results' in doc
+          assert 'summary' in doc
+          assert 'tool' in doc
+          print(f'Results: {len(doc[\"results\"])} checks')
+          print(f'Risk posture: {doc[\"summary\"][\"risk_posture\"]}')
+          "
+
+      - name: Validate SARIF output
+        run: |
+          python -c "
+          import json
+          with open('/tmp/kafka-audit.sarif') as f:
+              doc = json.load(f)
+          assert doc['version'] == '2.1.0'
+          assert len(doc['runs']) == 1
+          print(f'SARIF rules: {len(doc[\"runs\"][0][\"tool\"][\"driver\"][\"rules\"])}')
+          "
+
+      - name: Validate CSV output
+        run: |
+          python -c "
+          import csv
+          with open('/tmp/kafka-audit.csv') as f:
+              reader = csv.DictReader(f)
+              rows = list(reader)
+          assert 'Control_ID' in reader.fieldnames
+          assert 'NIST_800_171' in reader.fieldnames
+          assert 'CMMC_Level' in reader.fieldnames
+          assert 'MITRE_ATTACK' in reader.fieldnames
+          print(f'CSV rows: {len(rows)}')
+          "
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audit-results-${{ github.sha }}
+          path: |
+            /tmp/kafka-audit.json
+            /tmp/kafka-audit.sarif
+            /tmp/kafka-audit.csv
+          retention-days: 7
