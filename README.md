@@ -43,7 +43,7 @@ python audit.py --mode docker --container my-kafka \
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.10+
 - No third-party runtime dependencies (standard library only)
 - `docker` CLI (docker mode) or `kubectl` (kubectl mode)
 - Kafka CLI tools in PATH (or specify `--command-prefix`):
