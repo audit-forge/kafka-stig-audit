@@ -25,16 +25,16 @@ git clone https://github.com/audit-forge/kafka-stig-audit
 cd kafka-stig-audit
 
 # Run against a Docker container
-python audit.py --mode docker --container my-kafka
+python3 audit.py --mode docker --container my-kafka
 
 # Run against a Kubernetes pod
-python audit.py --mode kubectl --pod kafka-0 --namespace kafka
+python3 audit.py --mode kubectl --pod kafka-0 --namespace kafka
 
 # Run against a broker directly
-python audit.py --mode direct --host kafka.internal --port 9093
+python3 audit.py --mode direct --host kafka.internal --port 9093
 
 # Save all output formats
-python audit.py --mode docker --container my-kafka \
+python3 audit.py --mode docker --container my-kafka \
   --json results.json \
   --sarif results.sarif \
   --csv results.csv \
@@ -101,7 +101,7 @@ Connects to a running Kafka container via `docker exec`. Reads `server.propertie
 and runs Kafka CLI tools directly inside the container.
 
 ```bash
-python audit.py --mode docker --container kafka-broker
+python3 audit.py --mode docker --container kafka-broker
 ```
 
 ### Kubernetes Mode
@@ -109,7 +109,7 @@ python audit.py --mode docker --container kafka-broker
 Connects to a Kafka pod via `kubectl exec`.
 
 ```bash
-python audit.py --mode kubectl --pod kafka-0 --namespace kafka
+python3 audit.py --mode kubectl --pod kafka-0 --namespace kafka
 ```
 
 ### Direct Mode
@@ -118,7 +118,7 @@ Connects to the Kafka broker via network. Container-level checks (KF-CONT-*)
 are skipped; log4j-based checks may be limited.
 
 ```bash
-python audit.py --mode direct --host 192.168.1.100 --port 9093
+python3 audit.py --mode direct --host 192.168.1.100 --port 9093
 ```
 
 ## Output Formats
@@ -132,7 +132,7 @@ Color-coded executive summary + detailed findings with remediation guidance.
 Full structured results with framework mappings, evidence, and snapshot data.
 
 ```bash
-python audit.py --mode docker --container kafka --json results.json
+python3 audit.py --mode docker --container kafka --json results.json
 ```
 
 ### SARIF 2.1.0
@@ -140,7 +140,7 @@ python audit.py --mode docker --container kafka --json results.json
 GitHub Code Scanning and GitLab SAST compatible format.
 
 ```bash
-python audit.py --mode docker --container kafka --sarif results.sarif
+python3 audit.py --mode docker --container kafka --sarif results.sarif
 ```
 
 ### CSV (21 Columns)
@@ -157,7 +157,7 @@ CVE_ID, KEV_Score, CVE_Remediation, Local_Path
 ### Evidence Bundle (ZIP)
 
 ```bash
-python audit.py --mode docker --container kafka --bundle audit-bundle.zip
+python3 audit.py --mode docker --container kafka --bundle audit-bundle.zip
 ```
 
 Contents:
@@ -222,8 +222,12 @@ kafka-stig-audit/
 │   └── CVE_SCANNING.md
 └── test/
     ├── test_auth.py
+    ├── test_authz.py
     ├── test_encryption.py
-    └── test_runner.py
+    ├── test_logging.py
+    ├── test_network.py
+    ├── test_runner.py
+    └── test_zookeeper.py
 ```
 
 ## Disclaimer

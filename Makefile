@@ -7,25 +7,27 @@ help:
 	@echo "  make smoke         Run smoke test (direct mode, no broker needed)"
 	@echo "  make clean         Remove generated output files"
 
+PYTHON ?= python3
+
 test:
-	python -m pytest test/ -v
+	$(PYTHON) -m pytest test/ -v
 
 lint:
-	python -m py_compile audit.py runner.py
-	python -m py_compile checks/base.py checks/auth.py checks/encryption.py
-	python -m py_compile checks/authz.py checks/network.py checks/logging_checks.py
-	python -m py_compile checks/zookeeper.py checks/container.py checks/cve_scanner.py
-	python -m py_compile mappings/frameworks.py
-	python -m py_compile output/report.py output/sarif.py output/bundle.py
+	$(PYTHON) -m py_compile audit.py runner.py
+	$(PYTHON) -m py_compile checks/base.py checks/auth.py checks/encryption.py
+	$(PYTHON) -m py_compile checks/authz.py checks/network.py checks/logging_checks.py
+	$(PYTHON) -m py_compile checks/zookeeper.py checks/container.py checks/cve_scanner.py
+	$(PYTHON) -m py_compile mappings/frameworks.py
+	$(PYTHON) -m py_compile output/report.py output/sarif.py output/bundle.py
 	@echo "Syntax OK"
 
 check-syntax: lint
-	python -c "from checks import ALL_CHECKERS; print(f'Checkers loaded: {len(ALL_CHECKERS)}')"
-	python -c "from mappings.frameworks import FRAMEWORK_MAP; print(f'Mappings: {len(FRAMEWORK_MAP)}')"
-	python -c "from runner import KafkaRunner; print('Runner OK')"
+	$(PYTHON) -c "from checks import ALL_CHECKERS; print(f'Checkers loaded: {len(ALL_CHECKERS)}')"
+	$(PYTHON) -c "from mappings.frameworks import FRAMEWORK_MAP; print(f'Mappings: {len(FRAMEWORK_MAP)}')"
+	$(PYTHON) -c "from runner import KafkaRunner; print('Runner OK')"
 
 smoke:
-	python audit.py \
+	$(PYTHON) audit.py \
 		--mode direct \
 		--host localhost \
 		--port 9092 \
@@ -34,7 +36,7 @@ smoke:
 		--csv output/smoke-results.csv \
 		--sarif output/smoke-results.sarif \
 		--quiet || true
-	@python -c "\
+	@$(PYTHON) -c "\
 import json; \
 doc = json.load(open('output/smoke-results.json')); \
 print(f'Checks: {len(doc[\"results\"])} | Risk: {doc[\"summary\"][\"risk_posture\"]}') \
